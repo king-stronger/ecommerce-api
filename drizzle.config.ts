@@ -8,11 +8,6 @@ export default defineConfig({
 	strict: true,
 	verbose: true,
 	dbCredentials: {
-		port: env.DB_PORT,
-		host: env.DB_HOST,
-		database: env.DB_NAME,
-		user: env.DB_USER,
-		password: env.DB_PASSWORD,
-		ssl: false,
+		url: env.DATABASE_URL,
 	},
 });
