@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { expand } from "dotenv-expand";
 import { defineConfig } from "drizzle-kit";
 
-expand(config());
+expand(config({ override: true }));
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

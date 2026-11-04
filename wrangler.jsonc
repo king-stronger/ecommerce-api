@@ -9,8 +9,5 @@
 		"TRUSTED_ORIGINS": "http://localhost:5173,http://localhost:4173",
 		"COOKIE_DOMAIN": "",
 		"LOG_LEVEL": "info"
-	},
-	"secrets": {
-		"required": ["DATABASE_URL", "BETTER_AUTH_SECRET"]
 	}
 }

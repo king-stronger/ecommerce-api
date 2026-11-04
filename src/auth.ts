@@ -7,7 +7,7 @@ import { createDb } from "./db/db.js";
 import { createAuth } from "./lib/auth.js";
 import { envSchema } from "./lib/env.js";
 
-expand(config());
+expand(config({ override: true }));
 
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
