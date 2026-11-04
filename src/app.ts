@@ -1,5 +1,6 @@
 import { configureOpenApi } from "@/lib/configure-open-api.js";
 import { createApp } from "@/lib/create-app.js";
+import admin from "@/modules/admin/admin.index.js";
 import cart from "@/modules/cart/cart.index.js";
 import catalog from "@/modules/catalog/catalog.index.js";
 import checkout from "@/modules/checkout/checkout.index.js";
@@ -8,7 +9,7 @@ const app = createApp();
 
 configureOpenApi(app);
 
-const routes = [catalog, cart, checkout] as const;
+const routes = [catalog, cart, checkout, admin] as const;
 
 for (const route of routes) {
 	// OpenAPIHono route unions explode past TS limits once modules grow
