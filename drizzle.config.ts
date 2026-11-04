@@ -1,5 +1,13 @@
+import { config } from "dotenv";
+import { expand } from "dotenv-expand";
 import { defineConfig } from "drizzle-kit";
-import env from "./src/env.js";
+
+expand(config());
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+	throw new Error("DATABASE_URL is required for drizzle-kit");
+}
 
 export default defineConfig({
 	out: "./src/db/migrations",
@@ -8,6 +16,6 @@ export default defineConfig({
 	strict: true,
 	verbose: true,
 	dbCredentials: {
-		url: env.DATABASE_URL,
+		url: databaseUrl,
 	},
 });

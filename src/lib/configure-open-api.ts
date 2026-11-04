@@ -1,6 +1,6 @@
 import { Scalar } from "@scalar/hono-api-reference";
+import type { AppOpenApi } from "@/lib/types.js";
 import packageJson from "../../package.json" with { type: "json" };
-import type { AppOpenApi } from "./types.js";
 
 export function configureOpenApi(app: AppOpenApi) {
 	app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
@@ -13,7 +13,7 @@ export function configureOpenApi(app: AppOpenApi) {
 		openapi: "3.2.0",
 		info: {
 			version: packageJson.version,
-			title: "Garden Grid Api",
+			title: "Ecommerce API",
 		},
 	});
 
@@ -22,7 +22,7 @@ export function configureOpenApi(app: AppOpenApi) {
 		Scalar({
 			sources: [
 				{ url: "/docs", title: "API" },
-				{ url: "/api/auth/open-api/generate-schema", title: "AUTH" }
+				{ url: "/api/auth/open-api/generate-schema", title: "AUTH" },
 			],
 			theme: "kepler",
 			layout: "modern",

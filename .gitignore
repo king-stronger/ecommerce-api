@@ -11,9 +11,13 @@
 # deps
 node_modules/
 
-# env
+# env / local wrangler
 .env
-.env.production
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+.wrangler/
 
 # logs
 logs/

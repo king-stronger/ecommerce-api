@@ -1,19 +1,11 @@
 import { structuredLogger } from "@hono/structured-logger";
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
-import pino from "pino";
 import { notFound, onError, serveEmojiFavicon } from "stoker/middlewares";
 import { defaultHook } from "stoker/openapi";
-import env from "../env.js";
-import { createAuth } from "./auth.js";
-import type { AppBindings } from "./types.js";
-
-const rootLogger = pino({
-	level: env.LOG_LEVEL,
-	transport: {
-		target: "pino-pretty",
-	},
-});
+import type { AppBindings } from "@/lib/types.js";
+import { services } from "@/middlewares/services.js";
 
 export function createRouter() {
 	return new OpenAPIHono<AppBindings>({
@@ -25,18 +17,40 @@ export function createRouter() {
 export function createApp() {
 	const app = createRouter();
 
-	app.use(serveEmojiFavicon(""));
+	app.use(serveEmojiFavicon("🛒"));
 	app.use(requestId());
 	app.use(
 		structuredLogger({
-			createLogger: (c) => rootLogger.child({ requestId: c.var.requestId }),
+			createLogger: (c) => ({
+				debug: (...args: unknown[]) => console.debug(c.var.requestId, ...args),
+				info: (...args: unknown[]) => console.info(c.var.requestId, ...args),
+				warn: (...args: unknown[]) => console.warn(c.var.requestId, ...args),
+				error: (...args: unknown[]) => console.error(c.var.requestId, ...args),
+			}),
+		}),
+	);
+	app.use(services);
+	app.use(
+		"*",
+		cors({
+			origin: (origin, c) => {
+				const trusted = c.env.TRUSTED_ORIGINS.split(",")
+					.map((value: string) => value.trim())
+					.filter(Boolean);
+				if (!origin) {
+					return trusted[0] ?? "*";
+				}
+				return trusted.includes(origin) ? origin : null;
+			},
+			credentials: true,
+			allowHeaders: ["Content-Type", "Authorization"],
+			allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 		}),
 	);
 
 	app.on(["POST", "GET"], "/api/auth/*", (c) => {
-		const auth = createAuth(env)
-		return auth.handler(c.req.raw)
-	})
+		return c.var.auth.handler(c.req.raw);
+	});
 
 	app.notFound(notFound);
 	app.onError(onError);
