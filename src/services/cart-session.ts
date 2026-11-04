@@ -6,6 +6,14 @@ export const CART_SESSION_COOKIE = "cart_session";
 
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
+function cookieSecure(c: Context<AppBindings>) {
+	try {
+		return new URL(c.env.BETTER_AUTH_URL).protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
 /**
  * Guest carts are keyed by an opaque UUID stored in an httpOnly cookie.
  * Prefer cookie over headers so SvelteKit storefronts work without custom client wiring.
@@ -24,7 +32,7 @@ export function ensureCartSessionId(c: Context<AppBindings>) {
 	const sessionId = crypto.randomUUID();
 	setCookie(c, CART_SESSION_COOKIE, sessionId, {
 		httpOnly: true,
-		secure: true,
+		secure: cookieSecure(c),
 		sameSite: "Lax",
 		path: "/",
 		maxAge: COOKIE_MAX_AGE_SECONDS,
@@ -36,7 +44,7 @@ export function ensureCartSessionId(c: Context<AppBindings>) {
 export function clearCartSessionId(c: Context<AppBindings>) {
 	setCookie(c, CART_SESSION_COOKIE, "", {
 		httpOnly: true,
-		secure: true,
+		secure: cookieSecure(c),
 		sameSite: "Lax",
 		path: "/",
 		maxAge: 0,
