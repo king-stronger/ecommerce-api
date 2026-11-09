@@ -4,7 +4,7 @@
  */
 import { config } from "dotenv";
 import { expand } from "dotenv-expand";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { createAuth } from "../lib/auth.js";
 import { envSchema } from "../lib/env.js";
 import { createDb } from "./db.js";
@@ -35,11 +35,12 @@ const ADMIN_PASSWORD =
 	process.env.SEED_ADMIN_PASSWORD?.trim() || "adminadmin123";
 const ADMIN_NAME = process.env.SEED_ADMIN_NAME?.trim() || "Demo Admin";
 
-const photo = (id: string, alt: string) => ({
-	url: `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1400&q=80`,
-	alt,
-	sort: 0,
-});
+const u = (id: string) =>
+	`https://images.unsplash.com/${id}?auto=format&fit=crop&w=1400&q=80`;
+
+function photos(...entries: Array<[string, string]>) {
+	return entries.map(([id, alt], sort) => ({ url: u(id), alt, sort }));
+}
 
 async function ensureCategory(input: {
 	name: string;
@@ -61,6 +62,7 @@ async function ensureCategory(input: {
 				description: input.description,
 				image: input.image,
 				sortOrder: input.sortOrder,
+				isActive: true,
 			})
 			.where(eq(categories.id, existing.id))
 			.returning();
@@ -69,10 +71,7 @@ async function ensureCategory(input: {
 	}
 	const [row] = await db
 		.insert(categories)
-		.values({
-			...input,
-			isActive: true,
-		})
+		.values({ ...input, isActive: true })
 		.returning();
 	console.log(`  + category ${row.slug}`);
 	return row;
@@ -109,8 +108,58 @@ async function ensureProduct(input: {
 				description: input.description,
 				shortDescription: input.shortDescription,
 				images: input.images,
+				status: "active",
 			})
 			.where(eq(products.id, existing.id));
+
+		await db
+			.delete(productCategories)
+			.where(eq(productCategories.productId, existing.id));
+		if (input.categoryIds.length > 0) {
+			await db.insert(productCategories).values(
+				input.categoryIds.map((categoryId) => ({
+					productId: existing.id,
+					categoryId,
+				})),
+			);
+		}
+
+		for (const variant of input.variants) {
+			const [current] = await db
+				.select()
+				.from(productVariants)
+				.where(eq(productVariants.sku, variant.sku))
+				.limit(1);
+			if (current) {
+				await db
+					.update(productVariants)
+					.set({
+						name: variant.name,
+						price: variant.price,
+						compareAtPrice: variant.compareAtPrice ?? null,
+						stockQuantity: variant.stockQuantity,
+						options: variant.options,
+						isDefault: variant.isDefault,
+						isActive: true,
+					})
+					.where(eq(productVariants.id, current.id));
+			} else {
+				await db.insert(productVariants).values({
+					productId: existing.id,
+					name: variant.name,
+					sku: variant.sku,
+					price: variant.price,
+					compareAtPrice: variant.compareAtPrice ?? null,
+					stockQuantity: variant.stockQuantity,
+					trackInventory: true,
+					options: variant.options,
+					images: [],
+					isDefault: variant.isDefault,
+					isActive: true,
+				});
+			}
+		}
+
 		console.log(`  ~ product ${existing.slug}`);
 		return existing;
 	}
@@ -243,60 +292,177 @@ async function ensureAdminUser() {
 }
 
 async function main() {
-	console.log("Seeding demo data…");
+	console.log("Seeding FORMA demo catalog…");
 
 	await db
 		.update(categories)
 		.set({ isActive: false })
-		.where(eq(categories.slug, "demo"));
+		.where(
+			inArray(categories.slug, [
+				"demo",
+				"apparel",
+				"chaussures",
+				"sacs",
+				"accessories",
+			]),
+		);
 
-	const apparel = await ensureCategory({
-		name: "Vêtements",
-		slug: "apparel",
-		description: "Tees, pulls et vestes.",
-		image:
-			"https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1400&q=80",
+	const women = await ensureCategory({
+		name: "Women",
+		slug: "women",
+		description: "Dresses, knits, and everyday layers.",
+		image: u("photo-1515372039744-b8f02a3ae446"),
 		sortOrder: 0,
 	});
-	const shoes = await ensureCategory({
-		name: "Chaussures",
-		slug: "chaussures",
-		description: "Baskets et sandales.",
-		image:
-			"https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=1400&q=80",
+	const men = await ensureCategory({
+		name: "Men",
+		slug: "men",
+		description: "Tees, outerwear, and easy trousers.",
+		image: u("photo-1617137968427-85924c800a22"),
 		sortOrder: 1,
 	});
 	const bags = await ensureCategory({
-		name: "Sacs",
-		slug: "sacs",
-		description: "Cabas et sacs à dos.",
-		image:
-			"https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=1400&q=80",
+		name: "Bags",
+		slug: "bags",
+		description: "Totes, backpacks, and day bags.",
+		image: u("photo-1590874103328-eac38a683ce7"),
 		sortOrder: 2,
 	});
-	const accessories = await ensureCategory({
-		name: "Accessoires",
-		slug: "accessories",
-		description: "Casquettes, lunettes et écharpes.",
-		image:
-			"https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=1400&q=80",
+	const shoes = await ensureCategory({
+		name: "Shoes",
+		slug: "shoes",
+		description: "Sneakers and sandals.",
+		image: u("photo-1460353581641-37baddab0fa2"),
 		sortOrder: 3,
+	});
+	const accessories = await ensureCategory({
+		name: "Accessories",
+		slug: "accessories",
+		description: "Hats, eyewear, and soft extras.",
+		image: u("photo-1511499767150-a48a237f0083"),
+		sortOrder: 4,
 	});
 
 	await ensureProduct({
-		name: "Tee coton",
-		slug: "classic-tee",
+		name: "Column Dress",
+		slug: "column-dress",
 		description:
-			"Tee en coton mi-lourd, coupe droite. Sert aux démos catalogue et panier.",
-		shortDescription: "Coton mi-lourd, coupe droite",
-		images: [photo("photo-1521572163474-6864f9cf17ab", "Tee blanc plié")],
-		categoryIds: [apparel.id],
+			"A clean column silhouette in soft cotton. Seeded for the FORMA storefront demo.",
+		shortDescription: "Organic cotton — cream",
+		images: photos(
+			["photo-1515372039744-b8f02a3ae446", "Column dress front"],
+			["photo-1496747611176-843222e1e57c", "Column dress detail"],
+		),
+		categoryIds: [women.id],
+		variants: [
+			{
+				name: "Cream / S",
+				sku: "DRS-CRM-S",
+				price: 18900,
+				stockQuantity: 10,
+				options: { color: "Cream", size: "S" },
+				isDefault: true,
+			},
+			{
+				name: "Cream / M",
+				sku: "DRS-CRM-M",
+				price: 18900,
+				stockQuantity: 12,
+				options: { color: "Cream", size: "M" },
+				isDefault: false,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Linen Blouse",
+		slug: "linen-blouse",
+		description: "Relaxed linen blouse with a soft collar.",
+		shortDescription: "Linen — ivory",
+		images: photos(["photo-1564257631407-4deb1f99d992", "Linen blouse"]),
+		categoryIds: [women.id],
+		variants: [
+			{
+				name: "Ivory / S",
+				sku: "BLS-IVR-S",
+				price: 9800,
+				stockQuantity: 14,
+				options: { color: "Ivory", size: "S" },
+				isDefault: true,
+			},
+			{
+				name: "Ivory / M",
+				sku: "BLS-IVR-M",
+				price: 9800,
+				stockQuantity: 16,
+				options: { color: "Ivory", size: "M" },
+				isDefault: false,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Tailored Trousers",
+		slug: "tailored-trousers",
+		description: "Straight tailored trousers with a clean crease.",
+		shortDescription: "Wool blend — sand",
+		images: photos(["photo-1594633312681-425c7b97ccd1", "Tailored trousers"]),
+		categoryIds: [women.id],
+		variants: [
+			{
+				name: "Sand / 36",
+				sku: "TRS-SND-36",
+				price: 14200,
+				stockQuantity: 9,
+				options: { color: "Sand", size: "36" },
+				isDefault: true,
+			},
+			{
+				name: "Sand / 38",
+				sku: "TRS-SND-38",
+				price: 14200,
+				stockQuantity: 11,
+				options: { color: "Sand", size: "38" },
+				isDefault: false,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Knit Cardigan",
+		slug: "knit-cardigan",
+		description: "Open-front cardigan in a soft midweight knit.",
+		shortDescription: "Merino blend — camel",
+		images: photos(["photo-1434389677669-e08b4cac3105", "Knit cardigan"]),
+		categoryIds: [women.id],
+		variants: [
+			{
+				name: "Camel / M",
+				sku: "CRD-CML-M",
+				price: 12800,
+				stockQuantity: 13,
+				options: { color: "Camel", size: "M" },
+				isDefault: true,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Cotton Tee",
+		slug: "classic-tee",
+		description: "Midweight cotton tee with a straight cut.",
+		shortDescription: "Cotton — black / white",
+		images: photos(
+			["photo-1521572163474-6864f9cf17ab", "Cotton tee"],
+			["photo-1583743814966-8936f5b7be1a", "Cotton tee folded"],
+		),
+		categoryIds: [men.id],
 		variants: [
 			{
 				name: "Black / S",
 				sku: "TEE-BLK-S",
-				price: 2900,
-				compareAtPrice: 3500,
+				price: 3900,
+				compareAtPrice: 4900,
 				stockQuantity: 25,
 				options: { color: "Black", size: "S" },
 				isDefault: true,
@@ -304,8 +470,8 @@ async function main() {
 			{
 				name: "Black / M",
 				sku: "TEE-BLK-M",
-				price: 2900,
-				compareAtPrice: 3500,
+				price: 3900,
+				compareAtPrice: 4900,
 				stockQuantity: 40,
 				options: { color: "Black", size: "M" },
 				isDefault: false,
@@ -313,7 +479,7 @@ async function main() {
 			{
 				name: "White / M",
 				sku: "TEE-WHT-M",
-				price: 2900,
+				price: 3900,
 				stockQuantity: 30,
 				options: { color: "White", size: "M" },
 				isDefault: false,
@@ -322,55 +488,44 @@ async function main() {
 	});
 
 	await ensureProduct({
-		name: "Casquette",
-		slug: "everyday-cap",
-		description: "Casquette en coton, bride réglable.",
-		shortDescription: "Coton, bride réglable",
-		images: [photo("photo-1588850561407-ed78c282e89b", "Casquette noire")],
-		categoryIds: [accessories.id],
+		name: "Overshirt",
+		slug: "overshirt",
+		description: "Utility overshirt with chest pockets.",
+		shortDescription: "Cotton twill — olive",
+		images: photos(["photo-1591047139829-d91aecb6caea", "Overshirt"]),
+		categoryIds: [men.id],
 		variants: [
 			{
-				name: "Taille unique / Marine",
-				sku: "CAP-NVY-OS",
-				price: 1900,
-				stockQuantity: 50,
-				options: { color: "Marine", size: "TU" },
+				name: "Olive / M",
+				sku: "OVS-OLV-M",
+				price: 11800,
+				stockQuantity: 12,
+				options: { color: "Olive", size: "M" },
 				isDefault: true,
+			},
+			{
+				name: "Olive / L",
+				sku: "OVS-OLV-L",
+				price: 11800,
+				stockQuantity: 10,
+				options: { color: "Olive", size: "L" },
+				isDefault: false,
 			},
 		],
 	});
 
 	await ensureProduct({
-		name: "Pull maille",
-		slug: "pull-maille",
-		description: "Pull en maille fine, col rond.",
-		shortDescription: "Maille fine, col rond",
-		images: [photo("photo-1434389677669-e08b4cac3105", "Pull beige")],
-		categoryIds: [apparel.id],
-		variants: [
-			{
-				name: "Écru / M",
-				sku: "SWT-ECR-M",
-				price: 7900,
-				stockQuantity: 18,
-				options: { color: "Écru", size: "M" },
-				isDefault: true,
-			},
-		],
-	});
-
-	await ensureProduct({
-		name: "Veste denim",
+		name: "Denim Jacket",
 		slug: "veste-denim",
-		description: "Veste en denim, coupe droite.",
-		shortDescription: "Denim, coupe droite",
-		images: [photo("photo-1544022613-e87ca75a784a", "Veste en denim")],
-		categoryIds: [apparel.id],
+		description: "Classic denim jacket with a straight fit.",
+		shortDescription: "Denim — indigo",
+		images: photos(["photo-1544022613-e87ca75a784a", "Denim jacket"]),
+		categoryIds: [men.id],
 		variants: [
 			{
 				name: "Indigo / M",
 				sku: "JKT-IND-M",
-				price: 12900,
+				price: 14900,
 				stockQuantity: 12,
 				options: { color: "Indigo", size: "M" },
 				isDefault: true,
@@ -379,74 +534,66 @@ async function main() {
 	});
 
 	await ensureProduct({
-		name: "Baskets",
-		slug: "baskets",
-		description: "Baskets basses, semelle contrastée.",
-		shortDescription: "Basses, semelle contrastée",
-		images: [photo("photo-1460353581641-37baddab0fa2", "Paire de baskets")],
-		categoryIds: [shoes.id],
+		name: "Wool Sweater",
+		slug: "pull-maille",
+		description: "Fine-gauge crewneck sweater.",
+		shortDescription: "Wool — ecru",
+		images: photos(["photo-1576566588028-4147f3842f27", "Wool sweater"]),
+		categoryIds: [men.id],
 		variants: [
 			{
-				name: "Rouge / 42",
-				sku: "SNK-RED-42",
-				price: 9800,
-				stockQuantity: 14,
-				options: { color: "Rouge", size: "42" },
+				name: "Ecru / M",
+				sku: "SWT-ECR-M",
+				price: 11000,
+				stockQuantity: 18,
+				options: { color: "Ecru", size: "M" },
 				isDefault: true,
 			},
 		],
 	});
 
 	await ensureProduct({
-		name: "Sandales",
-		slug: "sandales",
-		description: "Sandales à bride, semelle plate.",
-		shortDescription: "Bride, semelle plate",
-		images: [photo("photo-1603487742131-4160ec999306", "Sandales")],
-		categoryIds: [shoes.id],
-		variants: [
-			{
-				name: "Sable / 40",
-				sku: "SDL-SND-40",
-				price: 6400,
-				stockQuantity: 16,
-				options: { color: "Sable", size: "40" },
-				isDefault: true,
-			},
-		],
-	});
-
-	await ensureProduct({
-		name: "Cabas",
+		name: "Structured Tote",
 		slug: "cabas",
-		description: "Cabas souple, anses longues.",
-		shortDescription: "Souple, anses longues",
-		images: [photo("photo-1590874103328-eac38a683ce7", "Cabas en cuir")],
+		description: "Structured tote with long handles.",
+		shortDescription: "Leather — camel",
+		images: photos(
+			["photo-1590874103328-eac38a683ce7", "Structured tote"],
+			["photo-1548036328-c9fa89d128fa", "Tote detail"],
+		),
 		categoryIds: [bags.id],
 		variants: [
 			{
 				name: "Camel",
 				sku: "BAG-CML-OS",
-				price: 4500,
+				price: 16500,
 				stockQuantity: 20,
 				options: { color: "Camel" },
 				isDefault: true,
+			},
+			{
+				name: "Black",
+				sku: "BAG-BLK-OS",
+				price: 16500,
+				stockQuantity: 15,
+				options: { color: "Black" },
+				isDefault: false,
 			},
 		],
 	});
 
 	await ensureProduct({
-		name: "Sac à dos",
+		name: "Canvas Backpack",
 		slug: "sac-a-dos",
-		description: "Sac à dos toile, poche avant.",
-		shortDescription: "Toile, poche avant",
-		images: [photo("photo-1553062407-98eeb64c6a62", "Sac à dos")],
+		description: "Canvas backpack with a front pocket.",
+		shortDescription: "Canvas — olive",
+		images: photos(["photo-1553062407-98eeb64c6a62", "Canvas backpack"]),
 		categoryIds: [bags.id],
 		variants: [
 			{
 				name: "Olive",
 				sku: "BPK-OLV-OS",
-				price: 8900,
+				price: 9800,
 				stockQuantity: 11,
 				options: { color: "Olive" },
 				isDefault: true,
@@ -455,39 +602,199 @@ async function main() {
 	});
 
 	await ensureProduct({
-		name: "Lunettes",
-		slug: "lunettes",
-		description: "Lunettes de soleil, monture fine.",
-		shortDescription: "Monture fine",
-		images: [photo("photo-1511499767150-a48a237f0083", "Lunettes de soleil")],
-		categoryIds: [accessories.id],
+		name: "Crossbody Bag",
+		slug: "crossbody-bag",
+		description: "Compact crossbody with an adjustable strap.",
+		shortDescription: "Leather — taupe",
+		images: photos(["photo-1584917865442-de89df76afd3", "Crossbody bag"]),
+		categoryIds: [bags.id],
 		variants: [
 			{
-				name: "Écaille",
-				sku: "GLS-TRT-OS",
-				price: 3500,
-				stockQuantity: 22,
-				options: { color: "Écaille" },
+				name: "Taupe",
+				sku: "XB-TPE-OS",
+				price: 12400,
+				stockQuantity: 14,
+				options: { color: "Taupe" },
 				isDefault: true,
 			},
 		],
 	});
 
 	await ensureProduct({
-		name: "Écharpe",
+		name: "Court Sneakers",
+		slug: "baskets",
+		description: "Low court sneakers with a contrast sole.",
+		shortDescription: "Leather — white",
+		images: photos(
+			["photo-1460353581641-37baddab0fa2", "Court sneakers"],
+			["photo-1606107557195-0e29a4b5b4aa", "Sneaker pair"],
+		),
+		categoryIds: [shoes.id],
+		variants: [
+			{
+				name: "White / 41",
+				sku: "SNK-WHT-41",
+				price: 12800,
+				stockQuantity: 14,
+				options: { color: "White", size: "41" },
+				isDefault: true,
+			},
+			{
+				name: "White / 42",
+				sku: "SNK-WHT-42",
+				price: 12800,
+				stockQuantity: 16,
+				options: { color: "White", size: "42" },
+				isDefault: false,
+			},
+			{
+				name: "White / 43",
+				sku: "SNK-WHT-43",
+				price: 12800,
+				stockQuantity: 12,
+				options: { color: "White", size: "43" },
+				isDefault: false,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Leather Sandals",
+		slug: "sandales",
+		description: "Flat strap sandals in soft leather.",
+		shortDescription: "Leather — sand",
+		images: photos(["photo-1603487742131-4160ec999306", "Leather sandals"]),
+		categoryIds: [shoes.id],
+		variants: [
+			{
+				name: "Sand / 39",
+				sku: "SDL-SND-39",
+				price: 8900,
+				stockQuantity: 10,
+				options: { color: "Sand", size: "39" },
+				isDefault: true,
+			},
+			{
+				name: "Sand / 40",
+				sku: "SDL-SND-40",
+				price: 8900,
+				stockQuantity: 16,
+				options: { color: "Sand", size: "40" },
+				isDefault: false,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Slip-On Loafers",
+		slug: "loafers",
+		description: "Soft leather loafers for everyday wear.",
+		shortDescription: "Leather — brown",
+		images: photos(["photo-1533867617858-e7b97e060509", "Loafers"]),
+		categoryIds: [shoes.id],
+		variants: [
+			{
+				name: "Brown / 42",
+				sku: "LOF-BRN-42",
+				price: 15600,
+				stockQuantity: 8,
+				options: { color: "Brown", size: "42" },
+				isDefault: true,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Soft Cap",
+		slug: "everyday-cap",
+		description: "Soft cotton cap with an adjustable strap.",
+		shortDescription: "Cotton — navy",
+		images: photos(["photo-1588850561407-ed78c282e89b", "Soft cap"]),
+		categoryIds: [accessories.id],
+		variants: [
+			{
+				name: "Navy / One size",
+				sku: "CAP-NVY-OS",
+				price: 3200,
+				stockQuantity: 50,
+				options: { color: "Navy", size: "One size" },
+				isDefault: true,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Sunglasses",
+		slug: "lunettes",
+		description: "Slim acetate sunglasses.",
+		shortDescription: "Acetate — tortoise",
+		images: photos(
+			["photo-1511499767150-a48a237f0083", "Sunglasses"],
+			["photo-1572635196237-14b3f281503f", "Sunglasses side"],
+		),
+		categoryIds: [accessories.id],
+		variants: [
+			{
+				name: "Tortoise",
+				sku: "GLS-TRT-OS",
+				price: 7800,
+				stockQuantity: 22,
+				options: { color: "Tortoise" },
+				isDefault: true,
+			},
+			{
+				name: "Black",
+				sku: "GLS-BLK-OS",
+				price: 7800,
+				stockQuantity: 18,
+				options: { color: "Black" },
+				isDefault: false,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Wool Scarf",
 		slug: "echarpe",
-		description: "Écharpe longue, maille légère.",
-		shortDescription: "Maille légère",
-		images: [photo("photo-1520903920243-00d872a2d1c9", "Écharpe")],
+		description: "Long scarf in a light wool knit.",
+		shortDescription: "Wool — caramel",
+		images: photos(["photo-1520903920243-00d872a2d1c9", "Wool scarf"]),
 		categoryIds: [accessories.id],
 		variants: [
 			{
 				name: "Caramel",
 				sku: "SCF-CRM-OS",
-				price: 2800,
+				price: 5400,
 				stockQuantity: 24,
 				options: { color: "Caramel" },
 				isDefault: true,
+			},
+		],
+	});
+
+	await ensureProduct({
+		name: "Leather Belt",
+		slug: "leather-belt",
+		description: "Slim leather belt with a brushed buckle.",
+		shortDescription: "Leather — black",
+		images: photos(["photo-1624222247344-550fb60583fd", "Leather belt"]),
+		categoryIds: [accessories.id],
+		variants: [
+			{
+				name: "Black / 85",
+				sku: "BLT-BLK-85",
+				price: 4800,
+				stockQuantity: 20,
+				options: { color: "Black", size: "85" },
+				isDefault: true,
+			},
+			{
+				name: "Black / 90",
+				sku: "BLT-BLK-90",
+				price: 4800,
+				stockQuantity: 18,
+				options: { color: "Black", size: "90" },
+				isDefault: false,
 			},
 		],
 	});
