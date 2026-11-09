@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import * as HttpStatusPhrases from "stoker/http-status-phrases";
 import type { DB } from "@/db/db.js";
@@ -30,6 +30,7 @@ import type {
 } from "./admin.routes.js";
 import {
 	adminListQuerySchema,
+	adminOrdersQuerySchema,
 	insertCategorySchema,
 	insertProductSchema,
 	insertVariantSchema,
@@ -148,22 +149,48 @@ export const listAdminProducts: AppRouteHandler<
 	ListAdminProductsRoute
 > = async (c) => {
 	const query = adminListQuerySchema.parse(c.req.query());
+	const filters: SQL[] = [];
+	if (query.status) {
+		filters.push(eq(products.status, query.status));
+	}
+	if (query.q) {
+		const term = `%${query.q}%`;
+		filters.push(
+			or(ilike(products.name, term), ilike(products.slug, term))!,
+		);
+	}
+	const where = filters.length > 0 ? and(...filters) : undefined;
+
+	const [totalRow] = await c.var.db
+		.select({ total: count() })
+		.from(products)
+		.where(where);
+
 	const rows = await c.var.db
 		.select()
 		.from(products)
-		.where(query.status ? eq(products.status, query.status) : undefined)
+		.where(where)
 		.orderBy(desc(products.createdAt))
 		.limit(query.limit)
 		.offset(query.offset);
 
-	const result = [];
+	const items = [];
 	for (const product of rows) {
 		const full = await loadAdminProduct(c.var.db, product.id);
 		if (full) {
-			result.push(full);
+			items.push(full);
 		}
 	}
-	return c.json(result, HttpStatusCodes.OK);
+
+	return c.json(
+		{
+			items,
+			total: totalRow?.total ?? 0,
+			limit: query.limit,
+			offset: query.offset,
+		},
+		HttpStatusCodes.OK,
+	);
 };
 
 export const getAdminProduct: AppRouteHandler<GetAdminProductRoute> = async (
@@ -325,24 +352,49 @@ export const deleteAdminVariant: AppRouteHandler<
 export const listAdminOrders: AppRouteHandler<ListAdminOrdersRoute> = async (
 	c,
 ) => {
-	const query = adminListQuerySchema
-		.omit({ status: true })
-		.parse(c.req.query());
+	const query = adminOrdersQuerySchema.parse(c.req.query());
+	const filters: SQL[] = [];
+	if (query.status) {
+		filters.push(eq(orders.status, query.status));
+	}
+	if (query.q) {
+		const term = `%${query.q}%`;
+		filters.push(
+			or(ilike(orders.orderNumber, term), ilike(orders.customerEmail, term))!,
+		);
+	}
+	const where = filters.length > 0 ? and(...filters) : undefined;
+
+	const [totalRow] = await c.var.db
+		.select({ total: count() })
+		.from(orders)
+		.where(where);
+
 	const rows = await c.var.db
 		.select({ id: orders.id })
 		.from(orders)
+		.where(where)
 		.orderBy(desc(orders.createdAt))
 		.limit(query.limit)
 		.offset(query.offset);
 
-	const result = [];
+	const items = [];
 	for (const row of rows) {
 		const order = await loadOrderView(c.var.db, row.id);
 		if (order) {
-			result.push(order);
+			items.push(order);
 		}
 	}
-	return c.json(result, HttpStatusCodes.OK);
+
+	return c.json(
+		{
+			items,
+			total: totalRow?.total ?? 0,
+			limit: query.limit,
+			offset: query.offset,
+		},
+		HttpStatusCodes.OK,
+	);
 };
 
 export const getAdminOrder: AppRouteHandler<GetAdminOrderRoute> = async (c) => {

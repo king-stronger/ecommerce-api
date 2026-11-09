@@ -1,5 +1,7 @@
 export {
 	adminListQuerySchema,
+	adminOrdersQuerySchema,
+	adminPageSchema,
 	insertCategorySchema,
 	insertProductSchema,
 	insertVariantSchema,

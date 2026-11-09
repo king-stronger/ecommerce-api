@@ -10,6 +10,8 @@ import {
 import { adminRoute } from "@/middlewares/auth.js";
 import {
 	adminListQuerySchema,
+	adminOrdersQuerySchema,
+	adminPageSchema,
 	insertCategorySchema,
 	insertProductSchema,
 	insertVariantSchema,
@@ -97,8 +99,8 @@ export const listAdminProducts = adminRoute({
 	request: { query: adminListQuerySchema },
 	responses: {
 		[HttpStatusCodes.OK]: jsonContent(
-			z.array(productWithVariantsSchema),
-			"Products",
+			adminPageSchema(productWithVariantsSchema),
+			"Paginated products",
 		),
 	},
 });
@@ -213,9 +215,12 @@ export const listAdminOrders = adminRoute({
 	tags,
 	path: "/admin/orders",
 	method: "get",
-	request: { query: adminListQuerySchema.omit({ status: true }) },
+	request: { query: adminOrdersQuerySchema },
 	responses: {
-		[HttpStatusCodes.OK]: jsonContent(z.array(orderViewSchema), "Orders"),
+		[HttpStatusCodes.OK]: jsonContent(
+			adminPageSchema(orderViewSchema),
+			"Paginated orders",
+		),
 	},
 });
 

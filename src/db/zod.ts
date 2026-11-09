@@ -104,7 +104,7 @@ export const adminListQuerySchema = z.object({
 		.int()
 		.positive()
 		.max(100)
-		.default(20)
+		.default(10)
 		.openapi({
 			param: { name: "limit", in: "query" },
 		}),
@@ -122,7 +122,57 @@ export const adminListQuerySchema = z.object({
 		.openapi({
 			param: { name: "status", in: "query" },
 		}),
+	q: z
+		.string()
+		.trim()
+		.min(1)
+		.optional()
+		.openapi({
+			param: { name: "q", in: "query" },
+		}),
 });
+
+export const adminOrdersQuerySchema = z.object({
+	limit: z.coerce
+		.number()
+		.int()
+		.positive()
+		.max(100)
+		.default(10)
+		.openapi({
+			param: { name: "limit", in: "query" },
+		}),
+	offset: z.coerce
+		.number()
+		.int()
+		.nonnegative()
+		.default(0)
+		.openapi({
+			param: { name: "offset", in: "query" },
+		}),
+	status: z
+		.enum(["pending", "confirmed", "cancelled", "completed"])
+		.optional()
+		.openapi({
+			param: { name: "status", in: "query" },
+		}),
+	q: z
+		.string()
+		.trim()
+		.min(1)
+		.optional()
+		.openapi({
+			param: { name: "q", in: "query" },
+		}),
+});
+
+export const adminPageSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+	z.object({
+		items: z.array(itemSchema),
+		total: z.number().int().nonnegative(),
+		limit: z.number().int().positive(),
+		offset: z.number().int().nonnegative(),
+	});
 
 export const updateOrderStatusSchema = z.object({
 	status: z.enum(["pending", "confirmed", "cancelled", "completed"]).optional(),
