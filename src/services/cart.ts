@@ -5,6 +5,16 @@ import { cartItems, carts, products, productVariants } from "@/db/schema.js";
 import type { AppBindings } from "@/lib/types.js";
 import { ensureCartSessionId, getCartSessionId } from "./cart-session.js";
 
+function firstProductImage(images: unknown): string | null {
+	if (!Array.isArray(images)) return null;
+	const first = images[0];
+	if (first && typeof first === "object" && "url" in first) {
+		const url = (first as { url?: unknown }).url;
+		return typeof url === "string" ? url : null;
+	}
+	return null;
+}
+
 export type CartItemView = {
 	id: string;
 	quantity: number;
@@ -12,6 +22,7 @@ export type CartItemView = {
 	productId: string;
 	productName: string;
 	productSlug: string;
+	productImage: string | null;
 	variantName: string;
 	sku: string | null;
 	unitPrice: number;
@@ -80,6 +91,7 @@ export async function loadCartView(db: DB, cartId: string): Promise<CartView> {
 			productId: products.id,
 			productName: products.name,
 			productSlug: products.slug,
+			productImages: products.images,
 			variantName: productVariants.name,
 			sku: productVariants.sku,
 			unitPrice: productVariants.price,
@@ -92,10 +104,14 @@ export async function loadCartView(db: DB, cartId: string): Promise<CartView> {
 		.innerJoin(products, eq(productVariants.productId, products.id))
 		.where(eq(cartItems.cartId, cartId));
 
-	const items: CartItemView[] = rows.map((row) => ({
-		...row,
-		lineTotal: row.unitPrice * row.quantity,
-	}));
+	const items: CartItemView[] = rows.map((row) => {
+		const { productImages, ...rest } = row;
+		return {
+			...rest,
+			productImage: firstProductImage(productImages),
+			lineTotal: row.unitPrice * row.quantity,
+		};
+	});
 
 	return {
 		id: cart.id,

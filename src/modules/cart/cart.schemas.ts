@@ -12,6 +12,7 @@ export const cartItemViewSchema = z.object({
 	productId: z.uuid(),
 	productName: z.string(),
 	productSlug: z.string(),
+	productImage: z.string().url().nullable(),
 	variantName: z.string(),
 	sku: z.string().nullable(),
 	unitPrice: z.number().int().nonnegative(),
