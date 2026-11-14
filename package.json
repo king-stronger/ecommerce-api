@@ -7,6 +7,8 @@
 		"deploy": "wrangler deploy",
 		"types": "wrangler types",
 		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push",
@@ -40,6 +42,7 @@
 		"drizzle-kit": "^0.31.10",
 		"tsx": "^4.23.0",
 		"typescript": "^7.0.2",
+		"vitest": "^5.1.0",
 		"wrangler": "^4.157.0"
 	}
 }

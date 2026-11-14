@@ -52,11 +52,21 @@ Override with `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` in `.
 | `pnpm dev` | Wrangler local Worker |
 | `pnpm deploy` | Deploy Worker |
 | `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` / `pnpm test:watch` | Vitest: HTTP integration + Zod unit tests |
 | `pnpm db:generate` | Generate Drizzle migrations |
 | `pnpm db:migrate` | Apply migrations |
 | `pnpm db:seed` | Idempotent demo data + admin user |
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm auth:generate` | Regenerate Better Auth Drizzle schema |
+
+## Tests
+
+```bash
+pnpm test          # once
+pnpm test:watch    # watch mode
+```
+
+Integration tests hit a real Neon database via `DATABASE_URL_TEST` (preferred) or `DATABASE_URL`. They create disposable `@ecommerce.test` users and `test-ecom-*` catalog rows, then clean them up in `afterEach`. Ensure migrations are applied on the test database before running.
 
 ## Frontend notes
 
@@ -68,3 +78,12 @@ Override with `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` in `.
 ## Env
 
 See [`.env.example`](./.env.example). Local secrets live in `.env` only (Wrangler reads it for `wrangler dev`).
+
+| Variable | Notes |
+| --- | --- |
+| `DATABASE_URL` | Neon connection string |
+| `DATABASE_URL_TEST` | Optional. Neon URL for Vitest; falls back to `DATABASE_URL` |
+| `BETTER_AUTH_SECRET` | ≥ 32 characters |
+| `BETTER_AUTH_URL` | Public API URL |
+| `TRUSTED_ORIGINS` | Comma-separated frontend origins |
+| `COOKIE_DOMAIN` | Optional parent domain for shared cookies |
