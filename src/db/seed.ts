@@ -292,7 +292,7 @@ async function ensureAdminUser() {
 }
 
 async function main() {
-	console.log("Seeding FORMA demo catalog…");
+	console.log("Seeding Ecommerce demo catalog…");
 
 	await db
 		.update(categories)
@@ -347,7 +347,7 @@ async function main() {
 		name: "Column Dress",
 		slug: "column-dress",
 		description:
-			"A clean column silhouette in soft cotton. Seeded for the FORMA storefront demo.",
+			"A clean column silhouette in soft cotton. Seeded for the Ecommerce storefront demo.",
 		shortDescription: "Organic cotton — cream",
 		images: photos(
 			["photo-1515372039744-b8f02a3ae446", "Column dress front"],
