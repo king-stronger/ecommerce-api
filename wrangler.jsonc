@@ -4,9 +4,11 @@
 	"main": "src/app.ts",
 	"compatibility_date": "2025-11-03",
 	"compatibility_flags": ["nodejs_compat"],
+	// Production values. Local dev overrides them through .env (see .env.example).
+	// Secrets (DATABASE_URL, BETTER_AUTH_SECRET) are set with `wrangler secret put`.
 	"vars": {
-		"BETTER_AUTH_URL": "http://localhost:8787",
-		"TRUSTED_ORIGINS": "http://localhost:5173,http://localhost:4173",
+		"BETTER_AUTH_URL": "https://ecommerce-api.strongerprojects.workers.dev",
+		"TRUSTED_ORIGINS": "https://ecommerce-app.strongerprojects.workers.dev",
 		"COOKIE_DOMAIN": "",
 		"LOG_LEVEL": "info"
 	}

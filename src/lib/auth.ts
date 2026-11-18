@@ -9,6 +9,14 @@ type AuthEnv = Pick<
 	"BETTER_AUTH_URL" | "BETTER_AUTH_SECRET" | "TRUSTED_ORIGINS" | "COOKIE_DOMAIN"
 >;
 
+function isHttps(url: string) {
+	try {
+		return new URL(url).protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
 export function createAuth(env: AuthEnv, db: DB) {
 	const trustedOrigins = env.TRUSTED_ORIGINS.split(",")
 		.map((origin) => origin.trim())
@@ -26,6 +34,16 @@ export function createAuth(env: AuthEnv, db: DB) {
 			enabled: true,
 		},
 		advanced: {
+			// Storefront and API live on different sites in production (workers.dev),
+			// so cookies must be SameSite=None; Secure to be sent with credentialed fetches.
+			...(isHttps(env.BETTER_AUTH_URL)
+				? {
+						defaultCookieAttributes: {
+							sameSite: "none" as const,
+							secure: true,
+						},
+					}
+				: {}),
 			...(env.COOKIE_DOMAIN
 				? {
 						crossSubDomainCookies: {

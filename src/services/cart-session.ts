@@ -15,6 +15,14 @@ function cookieSecure(c: Context<AppBindings>) {
 }
 
 /**
+ * Over HTTPS the storefront and API are on different sites (workers.dev),
+ * so the cookie must be SameSite=None; Secure to travel with credentialed fetches.
+ */
+function cookieSameSite(c: Context<AppBindings>) {
+	return cookieSecure(c) ? ("None" as const) : ("Lax" as const);
+}
+
+/**
  * Guest carts are keyed by an opaque UUID stored in an httpOnly cookie.
  * Prefer cookie over headers so SvelteKit storefronts work without custom client wiring.
  * On login, merge the guest cart into the customer cart then clear this cookie.
@@ -33,7 +41,7 @@ export function ensureCartSessionId(c: Context<AppBindings>) {
 	setCookie(c, CART_SESSION_COOKIE, sessionId, {
 		httpOnly: true,
 		secure: cookieSecure(c),
-		sameSite: "Lax",
+		sameSite: cookieSameSite(c),
 		path: "/",
 		maxAge: COOKIE_MAX_AGE_SECONDS,
 		...(c.env.COOKIE_DOMAIN ? { domain: c.env.COOKIE_DOMAIN } : {}),
@@ -45,7 +53,7 @@ export function clearCartSessionId(c: Context<AppBindings>) {
 	setCookie(c, CART_SESSION_COOKIE, "", {
 		httpOnly: true,
 		secure: cookieSecure(c),
-		sameSite: "Lax",
+		sameSite: cookieSameSite(c),
 		path: "/",
 		maxAge: 0,
 		...(c.env.COOKIE_DOMAIN ? { domain: c.env.COOKIE_DOMAIN } : {}),
