@@ -12,7 +12,7 @@ function hasAdminRole(role: string | string[] | null | undefined) {
 	return roles.map((value) => value.trim()).includes("admin");
 }
 
-export const authMiddleware = async (c: Context<AppBindings>, next: Next) => {
+const authMiddleware = async (c: Context<AppBindings>, next: Next) => {
 	const session = await c.var.auth.api.getSession({
 		headers: c.req.raw.headers,
 	});
@@ -29,7 +29,7 @@ export const authMiddleware = async (c: Context<AppBindings>, next: Next) => {
 	await next();
 };
 
-export const requireAuth = async (c: Context<AppBindings>, next: Next) => {
+const requireAuth = async (c: Context<AppBindings>, next: Next) => {
 	if (!c.get("user")) {
 		return c.json(
 			{ message: HttpStatusPhrases.UNAUTHORIZED },
@@ -39,7 +39,7 @@ export const requireAuth = async (c: Context<AppBindings>, next: Next) => {
 	await next();
 };
 
-export const requireAdmin = async (c: Context<AppBindings>, next: Next) => {
+const requireAdmin = async (c: Context<AppBindings>, next: Next) => {
 	const user = c.get("user");
 	if (!user || !hasAdminRole(user.role)) {
 		return c.json(
@@ -49,23 +49,6 @@ export const requireAdmin = async (c: Context<AppBindings>, next: Next) => {
 	}
 	await next();
 };
-
-export const protectedRoute = <
-	R extends Omit<RouteConfig, "middleware" | "security">,
->(
-	options: R,
-) =>
-	createRoute({
-		...options,
-		middleware: [authMiddleware, requireAuth] as const,
-		security: [{ cookieAuth: [] }],
-		responses: {
-			[HttpStatusCodes.UNAUTHORIZED]: {
-				description: "Unauthorized",
-			},
-			...options.responses,
-		},
-	});
 
 export const optionalRoute = <
 	R extends Omit<RouteConfig, "middleware" | "security">,

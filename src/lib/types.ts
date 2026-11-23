@@ -3,7 +3,7 @@ import type { Schema } from "hono";
 import type { DB } from "@/db/db.js";
 import type { Auth } from "@/lib/auth.js";
 
-export type Logger = Pick<Console, "debug" | "info" | "warn" | "error">;
+type Logger = Pick<Console, "debug" | "info" | "warn" | "error">;
 
 export interface AppBindings {
 	Bindings: Env;

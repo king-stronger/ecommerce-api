@@ -25,10 +25,10 @@ import { getTestEnv } from "./env.js";
 export const TEST_EMAIL_DOMAIN = "ecommerce.test";
 export const TEST_SLUG_PREFIX = "test-ecom-";
 export const TEST_COUPON_CODE = "TESTECOM10";
-export const TEST_COUPON_PREFIX = "TESTECOM-";
-export const TEST_SHIPPING_NAME = "Test Ecom Standard";
+const TEST_COUPON_PREFIX = "TESTECOM-";
+const TEST_SHIPPING_NAME = "Test Ecom Standard";
 
-export function testEnv(overrides: Partial<Env> = {}) {
+function testEnv(overrides: Partial<Env> = {}) {
 	return getTestEnv(overrides);
 }
 
@@ -81,7 +81,7 @@ function cookieFromAuthResponse(response: Response) {
 	return cookiePair(sessionCookie);
 }
 
-export function cartSessionFromResponse(response: Response) {
+function cartSessionFromResponse(response: Response) {
 	const cartCookie = setCookiesFromResponse(response).find((value) =>
 		value.startsWith(`${CART_SESSION_COOKIE}=`),
 	);

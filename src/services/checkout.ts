@@ -194,7 +194,7 @@ export async function createCheckoutOrder(
 			.where(eq(productVariants.id, item.productVariantId))
 			.limit(1);
 
-		if (!variant || !variant.isActive) {
+		if (!variant?.isActive) {
 			throw new CheckoutError(
 				"CONFLICT",
 				`Variant unavailable: ${item.variantName}`,

@@ -30,7 +30,7 @@ export const checkoutRequestSchema = z.object({
 	notes: z.string().optional(),
 });
 
-export const orderItemViewSchema = z.object({
+const orderItemViewSchema = z.object({
 	id: z.uuid(),
 	productId: z.uuid().nullable(),
 	productVariantId: z.uuid().nullable(),

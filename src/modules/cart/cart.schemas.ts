@@ -1,11 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import { createSelectSchema } from "drizzle-zod";
-import { cartItems, carts } from "@/db/schema.js";
 
-export const selectCartSchema = createSelectSchema(carts);
-export const selectCartItemSchema = createSelectSchema(cartItems);
-
-export const cartItemViewSchema = z.object({
+const cartItemViewSchema = z.object({
 	id: z.uuid(),
 	quantity: z.number().int().positive(),
 	productVariantId: z.uuid(),

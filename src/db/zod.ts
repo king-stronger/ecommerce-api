@@ -3,10 +3,10 @@ import { createSelectSchema } from "drizzle-zod";
 import { categories, products, productVariants } from "@/db/schema.js";
 
 export const selectCategorySchema = createSelectSchema(categories);
-export const selectProductSchema = createSelectSchema(products);
+const selectProductSchema = createSelectSchema(products);
 export const selectProductVariantSchema = createSelectSchema(productVariants);
 
-export const productImageSchema = z.object({
+const productImageSchema = z.object({
 	url: z.url(),
 	alt: z.string().optional(),
 	sort: z.number().int().optional(),

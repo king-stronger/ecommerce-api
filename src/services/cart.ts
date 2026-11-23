@@ -15,7 +15,7 @@ function firstProductImage(images: unknown): string | null {
 	return null;
 }
 
-export type CartItemView = {
+type CartItemView = {
 	id: string;
 	quantity: number;
 	productVariantId: string;
@@ -36,7 +36,7 @@ export type CartView = {
 	subtotal: number;
 };
 
-export async function findCartBySessionId(db: DB, sessionId: string) {
+async function findCartBySessionId(db: DB, sessionId: string) {
 	const [cart] = await db
 		.select()
 		.from(carts)

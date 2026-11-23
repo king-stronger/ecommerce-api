@@ -155,9 +155,10 @@ export const listAdminProducts: AppRouteHandler<
 	}
 	if (query.q) {
 		const term = `%${query.q}%`;
-		filters.push(
-			or(ilike(products.name, term), ilike(products.slug, term))!,
-		);
+		const nameOrSlug = or(ilike(products.name, term), ilike(products.slug, term));
+		if (nameOrSlug) {
+			filters.push(nameOrSlug);
+		}
 	}
 	const where = filters.length > 0 ? and(...filters) : undefined;
 
@@ -359,9 +360,13 @@ export const listAdminOrders: AppRouteHandler<ListAdminOrdersRoute> = async (
 	}
 	if (query.q) {
 		const term = `%${query.q}%`;
-		filters.push(
-			or(ilike(orders.orderNumber, term), ilike(orders.customerEmail, term))!,
+		const numberOrEmail = or(
+			ilike(orders.orderNumber, term),
+			ilike(orders.customerEmail, term),
 		);
+		if (numberOrEmail) {
+			filters.push(numberOrEmail);
+		}
 	}
 	const where = filters.length > 0 ? and(...filters) : undefined;
 

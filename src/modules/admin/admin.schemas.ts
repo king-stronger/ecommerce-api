@@ -7,7 +7,6 @@ export {
 	insertVariantSchema,
 	productWithVariantsSchema,
 	selectCategorySchema,
-	selectProductSchema,
 	selectProductVariantSchema,
 	updateCategorySchema,
 	updateOrderStatusSchema,
