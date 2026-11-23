@@ -44,6 +44,9 @@ describe("checkout", () => {
 		await ensureTestShippingMethod();
 		const res = await api("/shipping-methods");
 		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toBe(
+			"public, max-age=300, stale-while-revalidate=86400",
+		);
 		const body = (await res.json()) as Array<{
 			id: string;
 			name: string;

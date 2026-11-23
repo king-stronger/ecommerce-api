@@ -25,6 +25,9 @@ describe("catalog", () => {
 	it("lists active categories (smoke)", async () => {
 		const res = await api("/categories");
 		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toBe(
+			"public, max-age=300, stale-while-revalidate=86400",
+		);
 		const body = (await res.json()) as Array<{
 			id: string;
 			slug: string;

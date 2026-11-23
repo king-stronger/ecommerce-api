@@ -28,6 +28,10 @@ export const listCategories: AppRouteHandler<ListCategoriesRoute> = async (
 		.where(eq(categories.isActive, true))
 		.orderBy(categories.sortOrder, categories.name);
 
+	c.header(
+		"Cache-Control",
+		"public, max-age=300, stale-while-revalidate=86400",
+	);
 	return c.json(rows, HttpStatusCodes.OK);
 };
 

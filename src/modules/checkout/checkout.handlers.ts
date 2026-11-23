@@ -22,6 +22,10 @@ export const listShippingMethods: AppRouteHandler<
 	ListShippingMethodsRoute
 > = async (c) => {
 	const rows = await listActiveShippingMethods(c.var.db);
+	c.header(
+		"Cache-Control",
+		"public, max-age=300, stale-while-revalidate=86400",
+	);
 	return c.json(rows, HttpStatusCodes.OK);
 };
 
