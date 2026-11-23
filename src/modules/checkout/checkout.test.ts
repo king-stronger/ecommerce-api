@@ -7,6 +7,7 @@ import {
 	addToGuestCart,
 	api,
 	cleanupEcommerceFixtures,
+	createTestUser,
 	ensureTestCoupon,
 	ensureTestShippingMethod,
 	mergeCookies,
@@ -21,17 +22,20 @@ describe("checkout", () => {
 		productIds: string[];
 		cartSessionIds: string[];
 		orderEmails: string[];
-	} = { productIds: [], cartSessionIds: [], orderEmails: [] };
+		userIds: string[];
+	} = { productIds: [], cartSessionIds: [], orderEmails: [], userIds: [] };
 
 	afterEach(async () => {
 		await cleanupEcommerceFixtures({
 			productIds: fixtures.productIds,
 			cartSessionIds: fixtures.cartSessionIds,
 			orderEmails: fixtures.orderEmails,
+			userIds: fixtures.userIds,
 		});
 		fixtures.productIds = [];
 		fixtures.cartSessionIds = [];
 		fixtures.orderEmails = [];
+		fixtures.userIds = [];
 	});
 
 	function trackSession(sessionId: string | null) {
@@ -319,5 +323,60 @@ describe("checkout", () => {
 			}),
 		});
 		expect(res.status).toBe(409);
+	});
+
+	it("lists orders for the signed-in user", async () => {
+		const user = await createTestUser({ name: "Order History" });
+		fixtures.userIds.push(user.id);
+		fixtures.orderEmails.push(user.email);
+
+		const { product, variant } = await seedSellableProduct({ price: 4_000 });
+		fixtures.productIds.push(product.id);
+		const shipping = await ensureTestShippingMethod();
+
+		const added = await addToGuestCart({
+			productVariantId: variant.id,
+			quantity: 1,
+		});
+		expect(added.res.status).toBe(200);
+		trackSession(added.sessionId);
+
+		const address = testAddress();
+		const checkoutRes = await api("/checkout", {
+			method: "POST",
+			headers: {
+				cookie: mergeCookies(added.cartCookie, user.cookie),
+			},
+			body: JSON.stringify({
+				customerEmail: user.email,
+				customerFirstName: "Order",
+				customerLastName: "History",
+				shippingAddress: address,
+				billingAddress: address,
+				shippingMethodId: shipping.id,
+				currency: "EUR",
+			}),
+		});
+		expect(checkoutRes.status).toBe(201);
+		const order = (await checkoutRes.json()) as { orderNumber: string };
+
+		const unauthorized = await api("/orders");
+		expect(unauthorized.status).toBe(401);
+
+		const listRes = await api("/orders", {
+			headers: { cookie: user.cookie },
+		});
+		expect(listRes.status).toBe(200);
+		const list = (await listRes.json()) as Array<{
+			orderNumber: string;
+			itemCount: number;
+			totalAmount: number;
+		}>;
+		expect(list.some((row) => row.orderNumber === order.orderNumber)).toBe(
+			true,
+		);
+		const mine = list.find((row) => row.orderNumber === order.orderNumber);
+		expect(mine?.itemCount).toBe(1);
+		expect(mine?.totalAmount).toBeGreaterThan(0);
 	});
 });

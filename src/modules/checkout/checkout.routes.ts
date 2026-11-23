@@ -6,11 +6,12 @@ import {
 	createErrorSchema,
 	createMessageObjectSchema,
 } from "stoker/openapi/schemas";
-import { optionalRoute } from "@/middlewares/auth.js";
+import { authRoute, optionalRoute } from "@/middlewares/auth.js";
 import {
 	checkoutRequestSchema,
 	getOrderQuerySchema,
 	orderNumberParamsSchema,
+	orderSummarySchema,
 	orderViewSchema,
 	selectShippingMethodSchema,
 } from "./checkout.schemas.js";
@@ -78,6 +79,19 @@ export const getOrderByNumber = optionalRoute({
 	},
 });
 
+export const listMyOrders = authRoute({
+	tags,
+	path: "/orders",
+	method: "get",
+	responses: {
+		[HttpStatusCodes.OK]: jsonContent(
+			z.array(orderSummarySchema),
+			"Orders for the signed-in user",
+		),
+	},
+});
+
 export type ListShippingMethodsRoute = typeof listShippingMethods;
 export type CreateCheckoutRoute = typeof createCheckout;
 export type GetOrderByNumberRoute = typeof getOrderByNumber;
+export type ListMyOrdersRoute = typeof listMyOrders;

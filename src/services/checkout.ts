@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, or, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import type { DB } from "@/db/db.js";
 import {
@@ -397,4 +397,48 @@ export async function findOrderByNumber(db: DB, orderNumber: string) {
 		return null;
 	}
 	return loadOrderView(db, order.id);
+}
+
+export async function listOrdersForUser(
+	db: DB,
+	input: { userId: string; email: string },
+) {
+	const email = input.email.trim().toLowerCase();
+	const rows = await db
+		.select({
+			id: orders.id,
+			orderNumber: orders.orderNumber,
+			status: orders.status,
+			paymentStatus: orders.paymentStatus,
+			fulfillmentStatus: orders.fulfillmentStatus,
+			currency: orders.currency,
+			totalAmount: orders.totalAmount,
+			customerEmail: orders.customerEmail,
+			createdAt: orders.createdAt,
+			itemCount: count(orderItems.id),
+		})
+		.from(orders)
+		.leftJoin(customers, eq(orders.customerId, customers.id))
+		.leftJoin(orderItems, eq(orderItems.orderId, orders.id))
+		.where(
+			or(
+				eq(customers.userId, input.userId),
+				sql`lower(${orders.customerEmail}) = ${email}`,
+			),
+		)
+		.groupBy(orders.id)
+		.orderBy(desc(orders.createdAt));
+
+	return rows.map((row) => ({
+		id: row.id,
+		orderNumber: row.orderNumber,
+		status: row.status,
+		paymentStatus: row.paymentStatus,
+		fulfillmentStatus: row.fulfillmentStatus,
+		currency: row.currency,
+		totalAmount: row.totalAmount,
+		itemCount: Number(row.itemCount),
+		customerEmail: row.customerEmail,
+		createdAt: row.createdAt,
+	}));
 }

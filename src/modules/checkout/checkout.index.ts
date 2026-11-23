@@ -5,6 +5,7 @@ import * as routes from "./checkout.routes.js";
 const router = createRouter()
 	.openapi(routes.listShippingMethods, handlers.listShippingMethods)
 	.openapi(routes.createCheckout, handlers.createCheckout)
+	.openapi(routes.listMyOrders, handlers.listMyOrders)
 	.openapi(routes.getOrderByNumber, handlers.getOrderByNumber);
 
 export default router;

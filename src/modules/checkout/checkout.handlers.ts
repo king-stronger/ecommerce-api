@@ -6,10 +6,12 @@ import {
 	createCheckoutOrder,
 	findOrderByNumber,
 	listActiveShippingMethods,
+	listOrdersForUser,
 } from "@/services/checkout.js";
 import type {
 	CreateCheckoutRoute,
 	GetOrderByNumberRoute,
+	ListMyOrdersRoute,
 	ListShippingMethodsRoute,
 } from "./checkout.routes.js";
 import {
@@ -78,4 +80,20 @@ export const getOrderByNumber: AppRouteHandler<GetOrderByNumberRoute> = async (
 	}
 
 	return c.json(order, HttpStatusCodes.OK);
+};
+
+export const listMyOrders: AppRouteHandler<ListMyOrdersRoute> = async (c) => {
+	const user = c.get("user");
+	if (!user) {
+		return c.json(
+			{ message: HttpStatusPhrases.UNAUTHORIZED },
+			HttpStatusCodes.UNAUTHORIZED,
+		);
+	}
+
+	const rows = await listOrdersForUser(c.var.db, {
+		userId: user.id,
+		email: user.email,
+	});
+	return c.json(rows, HttpStatusCodes.OK);
 };

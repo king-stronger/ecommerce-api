@@ -66,6 +66,19 @@ export const orderViewSchema = z.object({
 	items: z.array(orderItemViewSchema),
 });
 
+export const orderSummarySchema = z.object({
+	id: z.uuid(),
+	orderNumber: z.string(),
+	status: z.string(),
+	paymentStatus: z.string(),
+	fulfillmentStatus: z.string(),
+	currency: z.string(),
+	totalAmount: z.number().int().nonnegative(),
+	itemCount: z.number().int().nonnegative(),
+	customerEmail: z.string(),
+	createdAt: z.coerce.date(),
+});
+
 export const orderNumberParamsSchema = z.object({
 	orderNumber: z
 		.string()

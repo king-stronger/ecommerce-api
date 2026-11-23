@@ -62,6 +62,23 @@ export const optionalRoute = <
 		responses: options.responses,
 	});
 
+export const authRoute = <
+	R extends Omit<RouteConfig, "middleware" | "security">,
+>(
+	options: R,
+) =>
+	createRoute({
+		...options,
+		middleware: [authMiddleware, requireAuth] as const,
+		security: [{ cookieAuth: [] }],
+		responses: {
+			[HttpStatusCodes.UNAUTHORIZED]: {
+				description: "Unauthorized",
+			},
+			...options.responses,
+		},
+	});
+
 export const adminRoute = <
 	R extends Omit<RouteConfig, "middleware" | "security">,
 >(
